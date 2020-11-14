@@ -1,6 +1,7 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
+const axios = require("axios");
 
 const app = express();
 app.use(bodyParser.json());
@@ -8,14 +9,8 @@ app.use(cors());
 
 const posts = {};
 
-//we need 2 rout handlers. one for event-bus events, one for getting post
-app.get("/posts", (req, res) => {
-  res.send(posts);
-});
-
-app.post("/events", (req, res) => {
-  const { type, data } = req.body;
-
+//this will ask for all the events that was created when query is down
+const handleEvent = (type, data) => {
   //watch for different events
   if (type == "PostCreated") {
     const { id, title } = data;
@@ -48,10 +43,24 @@ app.post("/events", (req, res) => {
     //commentUpdated only knows that something is updated but doesnt knw what! so every properties of this data needs to be assigned to this comment
     comment.content = content;
   }
+};
 
+//we need 2 rout handlers. one for event-bus events, one for getting post
+app.get("/posts", (req, res) => {
+  res.send(posts);
+});
+
+app.post("/events", (req, res) => {
+  const { type, data } = req.body;
+  handleEvent(type, data);
   res.send({});
 });
 
-app.listen(4002, () => {
+app.listen(4002, async () => {
   console.log("Listening on 4002");
+  const res = await axios.get("http://localhost:4005/events");
+  for (let event of res.data) {
+    console.log("Processing event:", event.type);
+    handleEvent(event.type, event.data);
+  }
 });
